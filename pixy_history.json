@@ -1,0 +1,26 @@
+[
+    {
+        "role": "system",
+        "content": "Summary of key points: There doesn't seem to be much of a conversation here, but if I had to summarize it would be:\n\n* The person visited a store and purchased milk and eggs.\n* They also saw a blue car at some point.\n* The person's name is John."
+    },
+    {
+        "role": "assistant",
+        "content": ""
+    },
+    {
+        "role": "user",
+        "content": "I went to the museum and saw a dinosaur"
+    },
+    {
+        "role": "assistant",
+        "content": ""
+    },
+    {
+        "role": "user",
+        "content": "what did I see?"
+    },
+    {
+        "role": "assistant",
+        "content": ""
+    }
+]
