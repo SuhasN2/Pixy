@@ -44,3 +44,7 @@ print(f"Agent 2: {agent2_response}")
 # Agent 1 responds to Agent 2's story, for example.
 agent1_response, agent1_history = run_agent(model_name, agent1_system_prompt, agent1_history, "That sounds interesting! Can you give me a summary?")
 print(f"Agent 1: {agent1_response}")
+
+print(agent1_history)
+print()
+print(agent2_history)

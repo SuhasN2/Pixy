@@ -1,14 +1,17 @@
-import json
 import ollama
+import json
 import os
-import re
-from datetime import datetime
-import hashlib
-
-class BaseAgent:
-    def __init__(self, name, model_name, system_prompt, history_filepath, memory_filepath, user_data_filepath, temperature=0.7, **kwargs):
+import tools
+class AiAgent:
+    def __init__(self,name,model_name, system_prompt, history_filepath, memory_filepath, user_data_filepath,tool_calling_model = None, temperature=0.7,**kwargs):
         self.name = name
         self.model_name = model_name
+
+        if tool_calling_model == None: 
+            self.tool_calling_model = model_name 
+        else:
+            self.tool_calling_model = tool_calling_model
+
         self.system_prompt = system_prompt
 
         self.history_filepath = history_filepath
@@ -24,7 +27,7 @@ class BaseAgent:
 
         self.temperature = temperature
 
-    # history loading and saving
+    # history loading and saving-----------------------------------
     def _load_history(self):
         if not os.path.exists(self.history_filepath):
             print("History file not found, creating empty history file.")
@@ -46,8 +49,7 @@ class BaseAgent:
                 print(f"Error saving history: {e}")
         else:
             print("History file path not provided")
-
-    # memory loading and saving
+    # memory loading and saving----------------------------------------
     def _load_memory(self):
         if not os.path.exists(self.memory_filepath):
             print("Memory file not found, creating empty memory file.")
@@ -70,7 +72,7 @@ class BaseAgent:
         else:
             print("Memory file path not provided")
 
-    # User data loading and saving
+    # User data loading and saving ---------------------------------
     def _load_user_data(self):
         if not os.path.exists(self.user_data_filepath):
             print("User data file not found, creating empty user data file.")
@@ -98,138 +100,92 @@ class BaseAgent:
             with open(filepath, 'w') as f:
                 if filepath == self.history_filepath:
                     json.dump([], f) # create an empty list for history
+                elif filepath == self.memory_filepath:
+                    json.dump([], f)#  
                 else:
                     json.dump({}, f) # create an empty dict for memory and user data
         except Exception as e:
             print(f"Error creating empty file {filepath}: {e}")
 
-    def _get_user_memories(self, user_id):
-        if user_id not in self.user_data:
-            self.user_data[user_id] = {"memories": {}}
-            self._save_user_data()
-        return self.user_data[user_id]["memories"]
-    
-    #* ---------------------------ollama tools-------------------------------
-    def _generate_memory_data(self, memory):
-        # Simply return the memory string
-        return memory    
-    def _store_memory_structured(self, user_id, memory_string):
-        memories = self._get_user_memories(user_id)
-        timestamp = datetime.now().isoformat()
-        unique_id = hashlib.md5(f"{memory_string}{timestamp}".encode()).hexdigest()
-        memories[unique_id] = {
-            "memory": memory_string,
-            "timestamp": timestamp,
-        }
-        self._save_user_data()
+    def generate_prompt(self,user_query):
+        full_prompt = ""
+        full_prompt += f"{user_query}"
+        return full_prompt
 
-    def store_memory(self, user_id, memory_content):
-        memory_string = self._generate_memory_data(memory_content)
-        if memory_string:
-            self._store_memory_structured(user_id, memory_string)
-            return "Memory stored."
-        else:
-            return "Failed to store memory."
+    def tool_calling(self):
+        messages = self.history.copy()
+        messages.append({'role': 'system', 'content': """You are the **Tool Selector AI**.
+        Your role is to analyze user requests and determine if a tool is needed to answer them. If a tool is necessary, you must select the most appropriate tool from the available tools and generate a valid tool call.
 
-    def run(self, user_message, user_id="default", temperature=None):
-        full_prompt = f"{self.system_prompt}\n"
-        for msg in self.history:
-            full_prompt += f"{msg['role']}: {msg['content']}\n"
-        full_prompt += f"user: {user_message}\n"
+        **Your Goal:** To accurately identify when a tool is required and to create a correct tool call that the second AI can use to get the information needed to answer the user's question.
 
-        current_temperature = temperature if temperature is not None else self.temperature
+        **Tool Access:** You have access to a set of tools. You do not need to know the specifics of each tool in this prompt, but you understand that you can use them to access information and perform actions.
 
-        open("temp.txt","w").write(full_prompt)
+        **Your Task Breakdown:**
 
-        try: #! WTF Y
-            response = ollama.chat(model=self.model_name, messages=[
-                {
-                    'role': 'user',
-                    'content': full_prompt,
-                },
-            ], options={"temperature": current_temperature}, tools=[{
-                "type": "function",
-                "function": {
-                    "name": "store_memory",
-                    "description": "Stores a memory.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "memory_content": {
-                                "type": "string",
-                                "description": "The memory content to store."
-                            }
-                        },
-                        "required": ["memory_content"]
-                    }
-                }
-            }])
-            agent_response = response['message']['content']
+        1. **Analyze User Request:** Carefully read and understand the user's request. Identify the core question or need.
+        2. **Tool Necessity Check:** Determine if answering the user's request would be significantly improved or only possible by using a tool. Consider:
+            * **Information Need:** Does the request require real-time data, specific information from external sources, or actions beyond general knowledge?
+            * **Tool Capabilities:** Consider if any of the tools you have access to are designed to address this type of information need or action.
+        3. **Tool Selection (If Necessary):** If a tool is needed, choose the most appropriate tool(s) from the available set. Select the tool(s) that are best suited to directly address the user's request.
+        4. **Tool Call Generation:** Once you've selected a tool, generate a valid tool call. This involves:
+            * Identifying the correct function name for the chosen tool.
+            * Determining the necessary arguments/parameters for the function based on the user's request.
+            * Formatting the tool call correctly so that it can be executed by the system.
+        5. **Output Tool Call(s) OR Indicate No Tool Needed:**
+            * **If tool(s) are selected:** Output *only* the tool call(s). Do not attempt to answer the user's question yourself. Your output should be the structured tool call(s) ready for execution.
+            * **If no tool is needed:** Output a clear signal that no tool is required. This could be a simple message like "No tool needed." or a specific code like `\"tool_calls\": \"None\"`.
 
-            if response.get('message', {}).get('tool_calls'):
-                for tool_call in response['message']['tool_calls']:
+        **Important Considerations:**
 
-                    if tool_call['function']['name'] == 'store_memory':
-                        arguments = tool_call['function']['arguments']
-                        if 'memory_content' in arguments:
-                            self.store_memory(user_id, arguments['memory_content'])
-                        else:
-                            print(f"Error: 'memory_content' key missing in tool call arguments: {arguments}")
+        * **Focus on Tool Selection and Calling:** Your *only* responsibility is tool selection and call generation. Do not attempt to formulate a final answer to the user.
+        * **Multiple Tool Calls:** You can make multiple tool calls if necessary, especially when storing multiple pieces of information. For example, if the user provides several facts, you can call the `store_user_information` function multiple times.
+        * **Accuracy in Tool Calls:** Ensure your tool calls are valid and contain all necessary and correctly formatted arguments. Incorrect tool calls will prevent the second AI from getting the information it needs.
+        * **Efficiency:** Select the most direct and efficient tool(s) for the task. Avoid unnecessary tool calls.
+        * **Assume Second AI Handles Response:** You do not need to worry about how the final response to the user will be generated. The second AI will handle that using the output from the tool you call.
 
-            if "MEMORY_STORE" in user_message: # ok 
-                memory_string = self._generate_memory_data(user_message)
-                if memory_string:
-                    self._store_memory_structured(user_id, memory_string)
+        Your output will be used by a second AI to generate the final response to the user. Make sure your tool selection and tool calls are accurate and helpful for that second AI to complete the task."""})
+        response: ollama.ChatResponse = ollama.chat(model=self.tool_calling_model, options={"temperature": 0.1}, messages=self.history, tools=tools.tools_list)
+        if response.message.tool_calls:
+            if response.message.tool_calls != "None":
+                # There may be multiple tool calls in the response
+                for tool in response.message.tool_calls:
+                    # Ensure the function is available, and then call it
+                    if function_to_call := tools.available_functions.get(tool.function.name):
+                        print('Calling function:', tool.function.name)
+                        print('Arguments:', tool.function.arguments)
+                        output = function_to_call(**tool.function.arguments)
+                        print('Function output:', output)
+                        # Add the function response to messages for the model to use
+                        self.history.append({'role': 'tool', 'content': str(output), 'name': tool.function.name})
 
-            """if "MEMORY_RECALL:" in agent_response: # !the F
-                json_match = re.search(r"MEMORY_RECALL:\s*(\{.*?\}\s*?)(?:MEMORY_STORE:|\s*$)", agent_response, re.DOTALL)
-                if json_match:
-                    recall_data_str = json_match.group(1).strip()
-                    recall_dict = json.loads(recall_data_str)
-                    if "key" in recall_dict:
-                        key = recall_dict["key"]
-                        recalled_value = self._recall_memory_tool(user_id, key)
-                        agent_response = agent_response.replace(json_match.group(0), recalled_value)
                     else:
-                        print("MEMORY_RECALL: key not found")
-                else:
-                    raise ValueError("MEMORY_RECALL: JSON data not found")"""
-            
-            response = response
+                        print('Function', tool.function.name, 'not found')
 
-            self.history.append({'role': 'user', 'content': user_message})
-            self.history.append({'role': 'assistant', 'content': str(response["message"]["content"])})
-            self._save_history()
-            return agent_response
-        except ollama.ResponseError as e:
-            print(f"Error from Ollama: {e}")
-            return "An error occurred while processing your request."
+        else:
+            print('No tool calls returned from model')
 
-    def summarize_oldest_messages(self, limit):
-        if len(self.history) <= limit:
-            return
-        oldest_messages = self.history[:len(self.history) - limit]
-        remaining_messages = self.history[len(self.history) - limit:]
-        summary_prompt = ("Summarize the following conversation, focusing on the key concepts and important points.\n" "If the conversation is very long, please provide a concise summary of the main ideas, instead of trying to include everything.\n")
-        for msg in oldest_messages:
-            summary_prompt += f"{msg['role']}: {msg['content']}\n"
-        try:
-            response = ollama.chat(model=self.model_name, messages=[
-                {
-                    'role': 'user',
-                    'content': summary_prompt,
-                },
-            ])
-            summary = response['message']['content']
-            self.history = [{'role': 'system', 'content': f"Summary of key points: {summary}"}] + remaining_messages
-            self._save_history()
-        except ollama.ResponseError as e:
-            print(f"Error summarizing: {e}")
+    def run(self,user_message):
+        
+        self.history.append({'role': 'user', 'content': self.generate_prompt(user_message)})
+
+        self.tool_calling()
+
+        response = ollama.chat(model=self.model_name, messages=self.history,)
+        
+        agent_response = response['message']['content']
+
+        
+        self.history.append({'role': 'assistant', 'content': agent_response})
+
+        self._save_history()
+
+        return agent_response
 def load_agent_from_json(filepath):
     try:
         with open(filepath, 'r') as f:
             data = json.load(f)
-            return BaseAgent(**data)
+            return AiAgent(**data)
     except FileNotFoundError:
         print(f"Error: File not found at {filepath}")
         return None
@@ -243,18 +199,10 @@ def load_agent_from_json(filepath):
         print(f"An unexpected error occured: {e}")
         return None
     
-agent = load_agent_from_json("pixy_config.json")
-
-if agent:
-    agent.run("I went to the store and bought milk and eggs. I also saw a blue car.", "user1") # Added user_id
-    agent.run("My name is John.", "user1") # Added user_id
-    agent.run("What is my name?", "user1") # Added user_id
-    agent.run("I went to the museum and saw a dinosaur", "user2") # Added user_id
-    agent.run("what did I see?", "user2") # Added user_id
-    print(agent.user_data)
-else:
-    print("Failed to load agent.")
-
-
-agent.summarize_oldest_messages(5)
-agent._save_history()
+if __name__ == "__main__":
+    agent = load_agent_from_json("pixy_config.json")
+    while True:
+        user_input = input("input: ")
+        if user_input.lower() == "/exit":
+            break
+        print("pixy:" + agent.run("user name: suhas \n"+ user_input))
