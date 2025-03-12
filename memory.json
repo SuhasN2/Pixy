@@ -21,5 +21,28 @@
             "source": "user",
             "mood": null
         }
+    },
+    "2025-03-12T16:36:31.343574": {
+        "data": "user name: suhas ",
+        "metadata": {
+            "username": "suhas",
+            "timestamp": "2025-03-12T16:36:31.343574",
+            "keywords": [],
+            "source": "user",
+            "mood": null,
+            "importance": null
+        }
+    },
+    "2025-03-12T16:37:25.472319": {
+        "data": "user name: suhas lmao good one! aaa lol",
+        "metadata": {
+            "type": "chat_log",
+            "timestamp": "2025-03-12T16:37:25.472319",
+            "keywords": [],
+            "source": "user",
+            "username": null,
+            "mood": null,
+            "importance": null
+        }
     }
 }

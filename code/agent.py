@@ -3,7 +3,7 @@ import json
 import os
 import tools
 class AiAgent:
-    def __init__(self,name,model_name, system_prompt, history_filepath, memory_filepath, user_data_filepath,tool_calling_model = None, temperature=0.7,**kwargs):
+    def __init__(self,name,model_name, system_prompt, history_filepath, memory_filepath,tool_calling_model = None, temperature=0.7,**kwargs):
         self.name = name
         self.model_name = model_name
 
@@ -19,9 +19,6 @@ class AiAgent:
 
         self.memory_filepath = memory_filepath
         self.memory = self._load_memory()
-
-        self.user_data_filepath = user_data_filepath
-        self.user_data = self._load_user_data()
 
         self.settings = kwargs
 
@@ -72,29 +69,6 @@ class AiAgent:
         else:
             print("Memory file path not provided")
 
-    # User data loading and saving ---------------------------------
-    def _load_user_data(self):
-        if not os.path.exists(self.user_data_filepath):
-            print("User data file not found, creating empty user data file.")
-            self._create_empty_file(self.user_data_filepath)
-            return {}
-        try:
-            with open(self.user_data_filepath, 'r') as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            print("User data file could not be read. Returning empty user data.")
-            return {}
-
-    def _save_user_data(self):
-        if self.user_data_filepath:
-            try:
-                with open(self.user_data_filepath, 'w') as f:
-                    json.dump(self.user_data, f, indent=4)
-            except Exception as e:
-                print(f"Error saving user data: {e}")
-        else:
-            print("User data file path not provided")
-
     def _create_empty_file(self, filepath):
         try:
             with open(filepath, 'w') as f:
@@ -107,9 +81,9 @@ class AiAgent:
         except Exception as e:
             print(f"Error creating empty file {filepath}: {e}")
 
-    def generate_prompt(self,user_query):
+    def generate_prompt(self,user_query): # todo: we should generate a prompt
         full_prompt = ""
-        full_prompt += f"{user_query}"
+        full_prompt += f"{user_query}" # todo: self.memory  ================| do it |===============
         return full_prompt
 
     def tool_calling(self):
@@ -164,9 +138,33 @@ class AiAgent:
 
         else:
             print('No tool calls returned from model')
+    def summarize_oldest_messages(self, model_name, limit):
+        """Summarizes the oldest messages in the history."""
+        if len(self.history) <= limit:
+            return  # No need to summarize
 
+        oldest_messages = self.history[:len(self.history) - limit]
+        remaining_messages = self.history[len(self.history) - limit:]
+
+        summary_prompt = "Summarize the following conversation:\n"
+        for msg in oldest_messages:
+            summary_prompt += f"{msg['role']}: {msg['content']}\n"
+
+        try:
+            response = ollama.chat(model=model_name, messages=[
+                {
+                    'role': 'user',
+                    'content': summary_prompt,
+                },
+            ])
+            summary = response['message']['content']
+
+            self.history = [{'role': 'system', 'content': f"Summary of previous conversation: {summary}"}] + remaining_messages
+
+        except ollama.ResponseError as e:
+            print(f"Error summarizing: {e}")
     def run(self,user_message):
-        
+
         self.history.append({'role': 'user', 'content': self.generate_prompt(user_message)})
 
         self.tool_calling()
@@ -178,6 +176,7 @@ class AiAgent:
         
         self.history.append({'role': 'assistant', 'content': agent_response})
 
+        self.summarize_oldest_messages(self.model_name,60)
         self._save_history()
 
         return agent_response
@@ -199,10 +198,3 @@ def load_agent_from_json(filepath):
         print(f"An unexpected error occured: {e}")
         return None
     
-if __name__ == "__main__":
-    agent = load_agent_from_json("pixy_config.json")
-    while True:
-        user_input = input("input: ")
-        if user_input.lower() == "/exit":
-            break
-        print("pixy:" + agent.run("user name: suhas \n"+ user_input))

@@ -258,6 +258,145 @@ def evaluate_expression(expression):
         return result
     except Exception as e:
         return f"Error: {e}"
+    
+def get_news_articles_from_json_key(keywords, json_file_path='nv.json', top_results=5, search_days=10):
+    """
+    Fetches news articles based on keywords using the News API.
+    API key is imported from a JSON file.
+    Dynamically updates the 'from' date to search within a specified day range.
+    Returns a maximum of the top specified number of results.
+
+    Args:
+        keywords (str or list): Keywords to search for in news articles.
+                                 If a list is provided, it will be joined into a string.
+        json_file_path (str, optional): Path to the JSON file containing API keys.
+                                        Defaults to 'nv.json' in the same directory.
+        top_results (int, optional): Maximum number of top results to return. Defaults to 5.
+        search_days (int, optional): Number of days to search back from today for news articles. Defaults to 10 days.
+
+    Returns:
+        dict: A dictionary containing news articles from the News API, or an error message.
+              Returns an empty dictionary if no articles are found.
+    """
+
+    search_days = int(search_days)
+    base_url = 'https://newsapi.org/v2/everything?'
+    # Dynamically set the date to 'search_days' ago from today
+    today_date = datetime.date.today()
+    date_from = (today_date - datetime.timedelta(days=search_days)).strftime('%Y-%m-%d')
+    sort_by = 'popularity' # Using sortBy from the user's example
+    api_key = None
+
+    if not isinstance(top_results, int) or top_results <= 0:
+        return {'error': "Invalid value for 'top_results'. Must be a positive integer."}
+    if not isinstance(search_days, int) or search_days <= 0:
+        return {'error': "Invalid value for 'search_days'. Must be a positive integer."}
+
+
+    try:
+        # Construct the absolute path to the JSON file
+        script_dir = os.path.dirname(os.path.abspath(__file__))  # Directory of the current script
+        json_path = os.path.join(script_dir, json_file_path)
+
+        with open(json_path, 'r') as f:
+            keys_data = json.load(f)
+            api_key = keys_data.get('YOUR_NEWSAPI_API_KEY')
+
+        if not api_key:
+            return {'error': "API key not found in JSON file or 'YOUR_NEWSAPI_API_KEY' key is missing."}
+
+    except FileNotFoundError:
+        return {'error': f"JSON file not found at path: {json_path}"}
+    except json.JSONDecodeError:
+        return {'error': f"Error decoding JSON from file: {json_path}. Please ensure it's valid JSON."}
+    except Exception as e: # Catch other potential exceptions during file reading
+        return {'error': f"An unexpected error occurred while reading the JSON file: {e}"}
+
+
+    if isinstance(keywords, list):
+        search_query = " ".join(keywords) # Join list of keywords into a string
+    else:
+        search_query = keywords # Use string keywords directly
+
+    url = f'{base_url}q={search_query}&from={date_from}&sortBy={sort_by}&apiKey={api_key}'
+
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
+        news_data = response.json()
+
+        if news_data.get('status') == 'ok' and news_data.get('articles'):
+            articles = news_data['articles']
+            top_articles = articles[:top_results] # Limit to top results
+            news_data['articles'] = top_articles # Update the articles in the dictionary
+            return news_data # Returns the entire JSON response as a dictionary, now with limited articles
+        elif news_data.get('status') == 'ok' and not news_data.get('articles'):
+            return {} # Return empty dictionary if no articles are found but the request was successful
+        else:
+            return {'error': f"API request failed: {news_data.get('message', 'Unknown error')}"} # Error from API
+
+    except requests.exceptions.RequestException as e:
+        return {'error': f"Request Exception: {e}"} # Handle network errors, timeouts, etc.
+
+
+def get_top_headlines(country='us', json_file_path='nv.json'):
+    """
+    Fetches top headlines from the News API for a specific country.
+    API key is imported from a JSON file.
+
+    Args:
+        country (str, optional): The 2-letter ISO 3166-1 country code for headlines.
+                                 Defaults to 'us' (United States).
+        json_file_path (str, optional): Path to the JSON file containing API keys.
+                                        Defaults to 'nv.json' in the same directory.
+
+    Returns:
+        dict: A dictionary containing top headlines from the News API, or an error message.
+              Returns an empty dictionary if no headlines are found.
+    """
+    base_url = 'https://newsapi.org/v2/top-headlines?'
+    api_key = None
+
+    if not country:
+        return {'error': "Country code must be provided."} # Ensure country code is provided
+
+    try:
+        # Construct the absolute path to the JSON file
+        script_dir = os.path.dirname(os.path.abspath(__file__))  # Directory of the current script
+        json_path = os.path.join(script_dir, json_file_path)
+
+        with open(json_path, 'r') as f:
+            keys_data = json.load(f)
+            api_key = keys_data.get('YOUR_NEWSAPI_API_KEY')
+
+        if not api_key:
+            return {'error': "API key not found in JSON file or 'YOUR_NEWSAPI_API_KEY' key is missing."}
+
+    except FileNotFoundError:
+        return {'error': f"JSON file not found at path: {json_path}"}
+    except json.JSONDecodeError:
+        return {'error': f"Error decoding JSON from file: {json_path}. Please ensure it's valid JSON."}
+    except Exception as e: # Catch other potential exceptions during file reading
+        return {'error': f"An unexpected error occurred while reading the JSON file: {e}"}
+
+
+    url = f'{base_url}country={country}&apiKey={api_key}'
+
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
+        news_data = response.json()
+
+        if news_data.get('status') == 'ok' and news_data.get('articles'):
+            return news_data # Returns the entire JSON response as a dictionary
+        elif news_data.get('status') == 'ok' and not news_data.get('articles'):
+            return {} # Return empty dictionary if no headlines are found but the request was successful
+        else:
+            return {'error': f"API request failed: {news_data.get('message', 'Unknown error')}"} # Error from API
+
+    except requests.exceptions.RequestException as e:
+        return {'error': f"Request Exception: {e}"} # Handle network errors, timeouts, etc.
+
 
 tools_list = [
     {
@@ -381,7 +520,45 @@ tools_list = [
                 "required": ["contact_name"]
             }
         }
-    }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_news_articles_from_json_key",
+            "description": "Use this function to get news articles based on keywords. You can provide keywords as a single string or a list of strings. The function will search for articles related to these keywords using the News API.  The API key is securely imported from a JSON file named 'nv.json' in the same directory as the script. This function returns a maximum of the top specified number of most popular news articles related to the keywords within a specified date range, defaulting to the last 10 days. This is useful when the user is asking for news about a specific topic or event and wants to see the most popular articles from recent days.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "keywords": {
+                        "type": "string",
+                        "description": "Keywords to search for in news articles.  Provide a single keyword or a list of keywords. For lists, each keyword should be a separate string."
+                    },
+                    "search_days": {
+                        "type": "integer",
+                        "description": "Number of days to search back from today for news articles. Defaults to 10 if not specified. Must be a positive integer."
+                    }
+                },
+                "required": ["keywords"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_top_headlines",
+            "description": "Use this function to get the top headlines from the News API for a specific country.  You need to specify the 2-letter ISO country code (e.g., 'us' for United States, 'in' for India). The API key is securely imported from a JSON file named 'nv.json' in the same directory as the script. This is helpful when the user wants to know the general top news headlines for a particular country.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "country": {
+                        "type": "string",
+                        "description": "The 2-letter ISO 3166-1 country code for top headlines (e.g., 'us', 'gb', 'in', 'ca')."
+                    }
+                },
+                "required": ["country"]
+            }
+        }
+    },
 ]
 
 available_functions = {
@@ -392,6 +569,6 @@ available_functions = {
     'store_user_information': store_user_information,
     'store_contact': store_contact,
     'update_contact_information': update_contact_information,
+    'get_news_articles_from_json_key':get_news_articles_from_json_key,
+    "get_top_headlines":get_top_headlines
 }
-
-
