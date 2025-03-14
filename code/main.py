@@ -23,4 +23,4 @@ if __name__ == "__main__":
             elif user_input_lower == "/help":
                 display_help()
             else:
-                print("pixy:" + ai.run("user name: suhas \n"+ user_input))
+                print("pixy:" + ai.run("user name:suhas \n"+ user_input))

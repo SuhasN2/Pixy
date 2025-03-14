@@ -160,7 +160,7 @@ def none_function():
     """
     return None
 
-def get_weather_in_bangalore(trigger: str = "None"): # Renamed to match tool name
+def get_weather_in_bangalore(trigger: str = "None",**args): # Renamed to match tool name
     """
     Gets current weather in Bengaluru, India, using a single function with 1-hour caching and error handling.
 
@@ -186,16 +186,16 @@ def get_weather_in_bangalore(trigger: str = "None"): # Renamed to match tool nam
     print("Fetching fresh weather data from API for Bengaluru...")
     api_key = None
     try:
-        with open('nv.json', 'r') as f:
+        with open('code/nv.json', 'r') as f:
             nv_config = json.load(f)
             api_key = nv_config.get("YOUR_OPENWEATHER_API_KEY")
-            print(f"API Key from nv.json: {api_key}")
+            print(f"API Key from code/nv.json: {api_key}")
             if not api_key:
-                return {"error": "API key not found in nv.json. Check 'YOUR_OPENWEATHER_API_KEY' key in file."}
+                return {"error": "API key not found in code/nv.json. Check 'YOUR_OPENWEATHER_API_KEY' key in file."}
     except FileNotFoundError:
-        return {"error": "Error: nv.json file not found. Ensure nv.json exists in directory."}
+        return {"error": "Error: code/nv.json file not found. Ensure code/nv.json exists in directory."}
     except json.JSONDecodeError:
-        return {"error": "Error: Invalid JSON format in nv.json. Check nv.json is valid JSON."}
+        return {"error": "Error: Invalid JSON format in code/nv.json. Check code/nv.json is valid JSON."}
 
     if not api_key:
         return {"error": "API key was not loaded."}
@@ -259,7 +259,7 @@ def evaluate_expression(expression):
     except Exception as e:
         return f"Error: {e}"
     
-def get_news_articles_from_json_key(keywords, json_file_path='nv.json', top_results=5, search_days=10):
+def get_news_articles_from_json_key(keywords, json_file_path='code/nv.json', top_results=5, search_days=10):
     """
     Fetches news articles based on keywords using the News API.
     API key is imported from a JSON file.
@@ -270,7 +270,7 @@ def get_news_articles_from_json_key(keywords, json_file_path='nv.json', top_resu
         keywords (str or list): Keywords to search for in news articles.
                                  If a list is provided, it will be joined into a string.
         json_file_path (str, optional): Path to the JSON file containing API keys.
-                                        Defaults to 'nv.json' in the same directory.
+                                        Defaults to 'code/nv.json' in the same directory.
         top_results (int, optional): Maximum number of top results to return. Defaults to 5.
         search_days (int, optional): Number of days to search back from today for news articles. Defaults to 10 days.
 
@@ -339,7 +339,7 @@ def get_news_articles_from_json_key(keywords, json_file_path='nv.json', top_resu
         return {'error': f"Request Exception: {e}"} # Handle network errors, timeouts, etc.
 
 
-def get_top_headlines(country='us', json_file_path='nv.json'):
+def get_top_headlines(country='us', json_file_path='code/nv.json'):
     """
     Fetches top headlines from the News API for a specific country.
     API key is imported from a JSON file.
@@ -348,7 +348,7 @@ def get_top_headlines(country='us', json_file_path='nv.json'):
         country (str, optional): The 2-letter ISO 3166-1 country code for headlines.
                                  Defaults to 'us' (United States).
         json_file_path (str, optional): Path to the JSON file containing API keys.
-                                        Defaults to 'nv.json' in the same directory.
+                                        Defaults to 'code/nv.json' in the same directory.
 
     Returns:
         dict: A dictionary containing top headlines from the News API, or an error message.
@@ -525,7 +525,7 @@ tools_list = [
         "type": "function",
         "function": {
             "name": "get_news_articles_from_json_key",
-            "description": "Use this function to get news articles based on keywords. You can provide keywords as a single string or a list of strings. The function will search for articles related to these keywords using the News API.  The API key is securely imported from a JSON file named 'nv.json' in the same directory as the script. This function returns a maximum of the top specified number of most popular news articles related to the keywords within a specified date range, defaulting to the last 10 days. This is useful when the user is asking for news about a specific topic or event and wants to see the most popular articles from recent days.",
+            "description": "Use this function to get news articles based on keywords. You can provide keywords as a single string or a list of strings. The function will search for articles related to these keywords using the News API.  The API key is securely imported from a JSON file named 'code/nv.json' in the same directory as the script. This function returns a maximum of the top specified number of most popular news articles related to the keywords within a specified date range, defaulting to the last 10 days. This is useful when the user is asking for news about a specific topic or event and wants to see the most popular articles from recent days.",
             "parameters": {
                 "type": "object",
                 "properties": {
