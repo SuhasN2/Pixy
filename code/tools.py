@@ -1,6 +1,6 @@
 import datetime
 import requests
-import json,os
+import json,os, re
 
 WEATHER_CACHE = {}  # In-memory cache (can be replaced with file-based cache for persistence)
 WEATHER_CACHE_EXPIRY_HOURS = 1  # Cache validity duration in hours
@@ -160,17 +160,21 @@ def none_function():
     """
     return None
 
-def get_weather_in_bangalore(trigger: str = "None",**args): # Renamed to match tool name
+WEATHER_CACHE = {}
+WEATHER_CACHE_EXPIRY_HOURS = 1
+
+def get_weather(city: str = "Bangalore"):
     """
-    Gets current weather in Bengaluru, India, using a single function with 1-hour caching and error handling.
+    Gets current weather in a specified city, using a single function with 1-hour caching and error handling.
 
     Args:
+        city: The name of the city to get weather for. Defaults to "Bangalore".
         trigger: A trigger to initiate weather retrieval (not used, but required by tool definition).
 
     Returns:
         A dictionary containing weather information, an error message string, or None if no function is needed.
     """
-    location = "Bengaluru"  # Or "Bengaluru JP Nagar, India" - adjust as needed
+    location = city  # Use the provided city name
     cache_key = f"weather_{location}"
 
     cached_data = WEATHER_CACHE.get(cache_key)
@@ -179,11 +183,10 @@ def get_weather_in_bangalore(trigger: str = "None",**args): # Renamed to match t
         last_cache_time, weather_info = cached_data
         time_difference = datetime.datetime.now() - last_cache_time
         if time_difference < datetime.timedelta(hours=WEATHER_CACHE_EXPIRY_HOURS):
-            print("Using cached weather data for Bengaluru (within 1 hour)...")
+            print(f"Using cached weather data for {location} (within 1 hour)...")
             return weather_info  # Return cached data if less than 1 hour old
 
-
-    print("Fetching fresh weather data from API for Bengaluru...")
+    print(f"Fetching fresh weather data from API for {location}...")
     api_key = None
     try:
         with open('code/nv.json', 'r') as f:
@@ -217,7 +220,7 @@ def get_weather_in_bangalore(trigger: str = "None",**args): # Renamed to match t
                 "humidity": data['main']['humidity'],
                 "wind_speed": data['wind']['speed']
             }
-            WEATHER_CACHE[cache_key] = (datetime.datetime.now(), weather_info) # Update cache
+            WEATHER_CACHE[cache_key] = (datetime.datetime.now(), weather_info)  # Update cache
             return weather_info
         else:
             return {"error": f"API error. Status code: {response.status_code}"}
@@ -232,32 +235,66 @@ def get_weather_in_bangalore(trigger: str = "None",**args): # Renamed to match t
     except requests.exceptions.RequestException as e:
         return {"error": f"Network error: {e}"}
 
-def get_current_time():
+def get_current_time(location=None):
     """
-    Get the current time.
-
-    Returns:
-        The current time as a string.
-    """
-    now = datetime.datetime.now()
-    current_time = now.strftime("%Y-%m-%d %H:%M:%S") # Format the time
-    return f"Current time: {current_time}"
-
-def evaluate_expression(expression):
-    """
-    Evaluates a Python code expression given as a string.
+    Returns the current time for a given city or time zone.
 
     Args:
-        expression (str): The Python expression to evaluate.
+        location (str): The name of a city or a time zone string.
 
     Returns:
-        The result of the evaluation, or an error message if evaluation fails.
+        str: The current time in the specified location, or an error message.
     """
+
+    city_timezones = {
+            "New York": "America/New_York",
+            "Los Angeles": "America/Los_Angeles",
+            "Chicago": "America/Chicago",
+            "Delhi": "Asia/Kolkata",
+            "Mumbai": "Asia/Kolkata",
+            "Bangalore": "Asia/Kolkata",
+            "Chennai": "Asia/Kolkata",
+            "Hyderabad": "Asia/Kolkata",
+            "Kolkata": "Asia/Kolkata",
+            "Pune": "Asia/Kolkata",
+            "Ahmedabad": "Asia/Kolkata",
+            "Jaipur": "Asia/Kolkata",
+            "Lucknow": "Asia/Kolkata",
+            "Surat": "Asia/Kolkata",
+            "Beijing": "Asia/Shanghai",
+            "Shanghai": "Asia/Shanghai",
+            "Guangzhou": "Asia/Shanghai",
+            "Shenzhen": "Asia/Shanghai",
+            "Tianjin": "Asia/Shanghai",
+            "London": "Europe/London",
+            "Paris": "Europe/Paris",
+            "Berlin": "Europe/Berlin",
+            "Rome": "Europe/Rome",
+            "Madrid": "Europe/Madrid",
+            "Amsterdam": "Europe/Amsterdam",
+            "Stockholm": "Europe/Stockholm",
+            "Tokyo": "Asia/Tokyo",
+        }
+
     try:
-        result = eval(expression)
-        return result
+        if location:
+            if location in city_timezones:
+                time_zone = city_timezones[location]
+            else:
+                time_zone = location
+        else:
+          time_zone = datetime.datetime.now().astimezone().tzinfo
+          if time_zone is None:
+            return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        tz = pytz.timezone(time_zone)
+        current_time = datetime.datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+        return current_time
+
+    except pytz.exceptions.UnknownTimeZoneError: #! what is pytz
+        return "Error: Invalid time zone."
     except Exception as e:
-        return f"Error: {e}"
+        return f"An unexpected error occured: {e}"
     
 def get_news_articles_from_json_key(keywords, json_file_path='code/nv.json', top_results=5, search_days=10):
     """
@@ -397,27 +434,127 @@ def get_top_headlines(country='us', json_file_path='code/nv.json'):
     except requests.exceptions.RequestException as e:
         return {'error': f"Request Exception: {e}"} # Handle network errors, timeouts, etc.
 
+def calculate(expression):
+    """
+    Calculates the result of a mathematical expression according to BODMAS.
 
-tools_list = [
-    {
-        "type": "function",
+    Args:
+        expression: The mathematical expression as a string.
+
+    Returns:
+        The calculated result as a string, or an error message string.
+    """
+
+    def evaluate_expression(expr):
+        """
+        Evaluates a simplified expression (without parentheses or exponents).
+        """
+        try:
+            tokens = re.findall(r"[\d.]+|\*\*|\*|/|\+|-", expr) # added ** for exponents
+            stack = []
+            operators = []
+
+            def apply_operator():
+                if operators:
+                    operator = operators.pop()
+                    operand2 = stack.pop()
+                    operand1 = stack.pop()
+                    if operator == "+":
+                        result = operand1 + operand2
+                    elif operator == "-":
+                        result = operand1 - operand2
+                    elif operator == "*":
+                        result = operand1 * operand2
+                    elif operator == "/":
+                        if operand2 == 0:
+                            return "Error: Division by zero"
+                        result = operand1 / operand2
+                    elif operator == "**": # added exponent handling
+                        result = operand1 ** operand2
+                    stack.append(result)
+
+            precedence = {"**": 3, "*": 2, "/": 2, "+": 1, "-": 1}
+
+            for token in tokens:
+                if token in "+-*/**":
+                    while operators and precedence.get(operators[-1], 0) >= precedence[token]:
+                        error = apply_operator()
+                        if error:
+                           return error
+                    operators.append(token)
+                else:
+                    stack.append(float(token))
+
+            while operators:
+                error = apply_operator()
+                if error:
+                    return error
+
+            if len(stack) != 1:
+                return "Error: Invalid expression"
+            return stack[0]
+
+        except ValueError:
+            return "Error: Invalid expression"
+
+    def handle_parentheses(expr):
+        """
+        Handles parentheses within the expression.
+        """
+        while "(" in expr:
+            start = expr.rfind("(")
+            end = expr.find(")", start)
+            if end == -1:
+                return "Error: Unmatched parentheses"
+            sub_expr = expr[start + 1:end]
+            sub_result = calculate(sub_expr)
+            if sub_result.startswith("Error"):
+                return sub_result
+            expr = expr[:start] + str(sub_result) + expr[end + 1:]
+        return expr
+
+    try:
+        expr = handle_parentheses(expression)
+        result = evaluate_expression(expr)
+        return str(result)
+    except Exception:
+        return "Error: Invalid expression"
+
+CACHE_FILE = "anidb_cache.json"
+
+def load_cache():
+    """Loads anime data from the cache file."""
+    if os.path.exists(CACHE_FILE):
+        with open(CACHE_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def save_cache(cache):
+    """Saves anime data to the cache file."""
+    with open(CACHE_FILE, "w") as f:
+        json.dump(cache, f, indent=4)
+
+
+tools = {
+    "get_weather": {
         "function": {
-            "name": "get_weather_in_bangalore",
-            "description": "Get the current weather conditions in Bengaluru JP Nagar, India.",
+            "name": "get_weather",
+            "description": "Get the current weather conditions in a specified city.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "trigger": {
+                    "city": {
                         "type": "string",
-                        "description": "A trigger to initiate weather retrieval. This parameter is not used, but is required to call the function."
+                        "description": "The name of the city to get weather conditions for. Defaults to Bangalore."
                     }
                 },
-                "required": ["trigger"]
+                "required": []
             }
-        }
+        },
+        "enabled": True,
+        "callable": get_weather  # Directly reference the function
     },
-    {
-        "type": "function",
+    "get_current_time": {
         "function": {
             "name": "get_current_time",
             "description": "Get the current time.",
@@ -425,10 +562,11 @@ tools_list = [
                 "type": "object",
                 "properties": {}
             }
-        }
+        },
+        "enabled": True,
+        "callable": get_current_time
     },
-    {
-        "type": "function",
+    "none_function": {
         "function": {
             "name": "none_function",
             "description": "This function does nothing and returns None. Use when no other function is needed.",
@@ -436,27 +574,11 @@ tools_list = [
                 "type": "object",
                 "properties": {}
             }
-        }
+        },
+        "enabled": True,
+        "callable": none_function
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "evaluate_expression",
-            "description": "Evaluates a Python code expression given as a string, including mathematical expressions.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "expression": {
-                        "type": "string",
-                        "description": "The Python expression to evaluate."
-                    }
-                },
-                "required": ["expression"]
-            }
-        }
-    },
-    {
-        "type": "function",
+    "store_user_information": {
         "function": {
             "name": "store_user_information",
             "description": "Stores general user information in the knowledge base. This function is used to store data with associated metadata. The data can be any string, and the metadata provides context, such as type, source, keywords, mood, username, and importance.",
@@ -482,10 +604,11 @@ tools_list = [
                 },
                 "required": ["data"]
             }
-        }
+        },
+        "enabled": True,
+        "callable": store_user_information
     },
-    {
-        "type": "function",
+    "store_contact": {
         "function": {
             "name": "store_contact",
             "description": "Stores contact information in the knowledge base. This function is specifically for adding new contacts, including their name, general information, relationship to the user, and any other relevant data.",
@@ -499,10 +622,11 @@ tools_list = [
                 },
                 "required": ["contact_name", "information", "relation"]
             }
-        }
+        },
+        "enabled": True,
+        "callable": store_contact
     },
-    {
-        "type": "function",
+    "update_contact_information": {
         "function": {
             "name": "update_contact_information",
             "description": "Updates existing contact information in the knowledge base. This function allows for modifications to a contact's general information, relationship, and any other stored data, including steps, status, and night change.",
@@ -519,10 +643,11 @@ tools_list = [
                 },
                 "required": ["contact_name"]
             }
-        }
+        },
+        "enabled": True,
+        "callable": update_contact_information
     },
-    {
-        "type": "function",
+    "get_news_articles_from_json_key": {
         "function": {
             "name": "get_news_articles_from_json_key",
             "description": "Use this function to get news articles based on keywords. You can provide keywords as a single string or a list of strings. The function will search for articles related to these keywords using the News API.  The API key is securely imported from a JSON file named 'code/nv.json' in the same directory as the script. This function returns a maximum of the top specified number of most popular news articles related to the keywords within a specified date range, defaulting to the last 10 days. This is useful when the user is asking for news about a specific topic or event and wants to see the most popular articles from recent days.",
@@ -540,10 +665,11 @@ tools_list = [
                 },
                 "required": ["keywords"]
             }
-        }
+        },
+        "enabled": True,
+        "callable": get_news_articles_from_json_key
     },
-    {
-        "type": "function",
+    "get_top_headlines": {
         "function": {
             "name": "get_top_headlines",
             "description": "Use this function to get the top headlines from the News API for a specific country.  You need to specify the 2-letter ISO country code (e.g., 'us' for United States, 'in' for India). The API key is securely imported from a JSON file named 'nv.json' in the same directory as the script. This is helpful when the user wants to know the general top news headlines for a particular country.",
@@ -557,18 +683,44 @@ tools_list = [
                 },
                 "required": ["country"]
             }
-        }
+        },
+        "enabled": True,
+        "callable": get_top_headlines
     },
-]
-
-available_functions = {
-    'get_current_time': get_current_time,
-    'none_function': none_function,
-    'get_weather_in_bangalore': get_weather_in_bangalore,
-    'evaluate_expression': evaluate_expression,
-    'store_user_information': store_user_information,
-    'store_contact': store_contact,
-    'update_contact_information': update_contact_information,
-    'get_news_articles_from_json_key':get_news_articles_from_json_key,
-    "get_top_headlines":get_top_headlines
+    "calculate": {
+            "function": {
+                "name": "calculate",
+                "description": "Calculates the result of a mathematical expression according to BODMAS (Brackets, Orders, Division, Multiplication, Addition, Subtraction). Supports basic arithmetic operations (+, -, *, /), parentheses, and exponents (**).", # Added a comma here.
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "expression": {
+                            "type": "string",
+                            "description": "The mathematical expression to calculate as a string. For example: '2 * (3 + 4) / 7', '2 + 3 * 4 - 1', '2 ** 3 + 1'."
+                        }
+                    },
+                    "required": ["expression"]
+                }
+            },
+            "enabled": True,
+            "callable": calculate
+    },
+    "get_current_time_location":{
+        "function":{
+            "name": "get_current_time",
+            "description": "Get the current time in a specified city or timezone.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The name of the city or timezone to get the current time for. If no location is provided, the current time in the user's local timezone will be returned."
+                    }
+                },
+                "required": []
+            }
+        },
+        "enabled": True,
+        "callable": get_current_time
+    }
 }

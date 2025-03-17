@@ -86,7 +86,7 @@ class AiAgent:
         full_prompt += f"{user_query}" # todo: self.memory  ================| do it |===============
         return full_prompt
 
-    def tool_calling(self):
+    def tool_calling(self): # todo septate tool calling prompt
         messages = self.history.copy()
         messages.append({'role': 'system', 'content': """You are the **Tool Selector AI**.
         Your role is to analyze user requests and determine if a tool is needed to answer them. If a tool is necessary, you must select the most appropriate tool from the available tools and generate a valid tool call.

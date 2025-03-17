@@ -48,5 +48,39 @@
     {
         "role": "assistant",
         "content": "The current weather in Bangalore is clear skies with a temperature of approximately 34\u00b0C (93\u00b0F), relative humidity of 23%, and wind speed of about 5.78 meters per second."
+    },
+    {
+        "role": "user",
+        "content": "user name:suhas \nget wether in tokyo"
+    },
+    {
+        "role": "assistant",
+        "content": "I don't have real-time weather data for Tokyo. However, I can guide you to find out the current weather conditions in Tokyo.\n\nAlternatively, I can suggest using an online weather service like AccuWeather or Weather.com that provides up-to-date information about the weather in Tokyo. \n\nIf you want, I can help you create a note with some of these services' URLs so you can easily access them later."
+    },
+    {
+        "role": "user",
+        "content": "user name:suhas \ntry now"
+    },
+    {
+        "role": "tool",
+        "content": "{'main': 'Clear', 'description': 'clear sky', 'temperature_celsius': 15.080000000000041, 'humidity': 42, 'wind_speed': 0.45}",
+        "name": "get_weather"
+    },
+    {
+        "role": "assistant",
+        "content": "The current weather in Tokyo is clear skies with a temperature of approximately 15\u00b0C (59\u00b0F), relative humidity of 42%, and wind speed of about 0.45 meters per second."
+    },
+    {
+        "role": "user",
+        "content": "user name:suhas \ncall the wether function"
+    },
+    {
+        "role": "tool",
+        "content": "{'main': 'Clear', 'description': 'clear sky', 'temperature_celsius': 34.200000000000045, 'humidity': 23, 'wind_speed': 5.85}",
+        "name": "get_weather"
+    },
+    {
+        "role": "assistant",
+        "content": "The weather function has been called again.\n\nIt seems that the current weather in Bangalore is still clear skies with a temperature of approximately 34\u00b0C (93\u00b0F), relative humidity of 23%, and wind speed of about 5.85 meters per second."
     }
 ]
