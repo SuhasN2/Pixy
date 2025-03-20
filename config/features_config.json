@@ -1,0 +1,121 @@
+[
+    {
+      "name": "Speech to Text",
+      "enabled": true,
+      "description": "Enables the ability to convert spoken language into text."
+    },
+    {
+      "name": "Multiple Query Rewrites",
+      "enabled": true,
+      "description": "Allows the AI to generate multiple variations of a query to improve search or information retrieval results."
+    },
+    {
+      "name": "Augmented Retrieval Generation",
+      "enabled": true,
+      "description": "Enhances the AI's ability to retrieve and generate information using external knowledge sources.",
+      "features": [
+        {
+          "name": "Memory",
+          "enabled": true,
+          "description": "Allows the AI to access and utilize short-term or long-term memory for context and information."
+        },
+        {
+          "name": "Obsidian",
+          "enabled": true,
+          "description": "Integrates with an Obsidian vault to retrieve and utilize notes and knowledge stored within."
+        }
+      ]
+    },
+    {
+      "name": "History Summarization",
+      "enabled": true,
+      "description": "Enables the AI to summarize past interactions or conversation history."
+    },
+    {
+      "name": "Web Functionality",
+      "enabled": true,
+      "description": "Provides access to various web-based functionalities.",
+      "features": [
+        {
+          "name": "News",
+          "enabled": true,
+          "description": "Retrieves the latest news headlines and information.",
+          "function_settings": {
+            "api_key": "YOUR_NEWS_API_KEY_HERE"
+          }
+        },
+        {
+          "name": "Weather",
+          "enabled": true,
+          "description": "Provides current weather information and forecasts.",
+          "function_settings": {
+            "api_key": "YOUR_WEATHER_API_KEY_HERE"
+          }
+        },
+        {
+          "name": "World Time",
+          "enabled": true,
+          "description": "Provides the current time for different locations around the world.",
+          "function_settings": {
+            "api_key": "YOUR_WORLD_TIME_API_KEY_HERE"
+          }
+        },
+        {
+          "name": "Web Search",
+          "enabled": true,
+          "description": "Allows the AI to perform web searches using a doctor container for safety.",
+          "function_settings": {
+          }
+        }
+      ]
+    },
+    {
+      "name": "Structured Problem Solving",
+      "enabled": true,
+      "description": "Enables a more deliberate problem-solving approach involving breaking down complex tasks and synthesizing solutions."
+    },
+    {
+      "name": "Other lists functionality",
+      "enabled": true,
+      "description": "Provides integration for managing other types of lists."
+    },
+    {
+      "name": "Database Integration",
+      "enabled": true,
+      "description": "Provides integration with various databases for managing information.",
+      "features": [
+        {
+          "name": "Task Management",
+          "enabled": true,
+          "description": "Features related to managing tasks and lists.",
+          "features": []
+        },
+        {
+          "name": "Anime database",
+          "enabled": true,
+          "description": "Integration with a database for managing anime information."
+        },
+        {
+          "name": "Movies database",
+          "enabled": true,
+          "description": "Integration with a database for managing movie information."
+        },
+        {
+          "name": "Finance database",
+          "enabled": true,
+          "description": "Integration with a database for managing financial information."
+        },
+        {
+          "name": "Contacts database",
+          "enabled": true,
+          "description": "Integration with a database for managing contacts information."
+        },
+        {
+          "name": "Project Management",
+          "enabled": true,
+          "description": "Features for managing projects and related information."
+        }
+      ]
+
+    }
+  ]
