@@ -1,9 +1,9 @@
 import requests, json, datetime, re, os, pytz
 import logging
-from tool_calling.tool import tool
+# from tool_calling import tool
 
 # Configure logging (add this if you haven't already)
-logging.basicConfig(filename='general_tools.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='general_tools.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s') # Corrected line
 
 CONFIG_FILEPATH = 'config/AI_config.json'  # Path to your config file
 WEATHER_CACHE = {}
@@ -55,16 +55,16 @@ def get_weather(city: str = "Bangalore"):
     print(f"Fetching fresh weather data from API for {location}...")
     api_key = None
     try:
-        with open('code/nv.json', 'r') as f:
+        with open('config/nv.json', 'r') as f:
             nv_config = json.load(f)
             api_key = nv_config.get("YOUR_OPENWEATHER_API_KEY")
-            print(f"API Key from code/nv.json: {api_key}")
+            print(f"API Key from config/nv.json: {api_key}")
             if not api_key:
-                return {"error": "API key not found in code/nv.json. Check 'YOUR_OPENWEATHER_API_KEY' key in file."}
+                return {"error": "API key not found in config/nv.json. Check 'YOUR_OPENWEATHER_API_KEY' key in file."}
     except FileNotFoundError:
-        return {"error": "Error: code/nv.json file not found. Ensure code/nv.json exists in directory."}
+        return {"error": "Error: config/nv.json file not found. Ensure config/nv.json exists in directory."}
     except json.JSONDecodeError:
-        return {"error": "Error: Invalid JSON format in code/nv.json. Check code/nv.json is valid JSON."}
+        return {"error": "Error: Invalid JSON format in config/nv.json. Check config/nv.json is valid JSON."}
 
     if not api_key:
         return {"error": "API key was not loaded."}
@@ -162,7 +162,7 @@ def get_current_time(location=None):
     except Exception as e:
         return f"An unexpected error occured: {e}"
     
-def get_news_articles_from_json_key(keywords, json_file_path='code/nv.json', top_results=5, search_days=10):
+def get_news_articles_from_json_key(keywords, json_file_path='config/nv.json', top_results=5, search_days=10):
     """
     Fetches news articles based on keywords using the News API.
     API key is imported from a JSON file.
@@ -173,7 +173,7 @@ def get_news_articles_from_json_key(keywords, json_file_path='code/nv.json', top
         keywords (str or list): Keywords to search for in news articles.
                                  If a list is provided, it will be joined into a string.
         json_file_path (str, optional): Path to the JSON file containing API keys.
-                                        Defaults to 'code/nv.json' in the same directory.
+                                        Defaults to 'config/nv.json' in the same directory.
         top_results (int, optional): Maximum number of top results to return. Defaults to 5.
         search_days (int, optional): Number of days to search back from today for news articles. Defaults to 10 days.
 
@@ -197,11 +197,7 @@ def get_news_articles_from_json_key(keywords, json_file_path='code/nv.json', top
 
 
     try:
-        # Construct the absolute path to the JSON file
-        script_dir = os.path.dirname(os.path.abspath(__file__))  # Directory of the current script
-        json_path = os.path.join(script_dir, json_file_path)
-
-        with open(json_path, 'r') as f:
+        with open(json_file_path, 'r') as f:
             keys_data = json.load(f)
             api_key = keys_data.get('YOUR_NEWSAPI_API_KEY')
 
@@ -209,9 +205,9 @@ def get_news_articles_from_json_key(keywords, json_file_path='code/nv.json', top
             return {'error': "API key not found in JSON file or 'YOUR_NEWSAPI_API_KEY' key is missing."}
 
     except FileNotFoundError:
-        return {'error': f"JSON file not found at path: {json_path}"}
+        return {'error': f"JSON file not found at path: {json_file_path}"}
     except json.JSONDecodeError:
-        return {'error': f"Error decoding JSON from file: {json_path}. Please ensure it's valid JSON."}
+        return {'error': f"Error decoding JSON from file: {json_file_path}. Please ensure it's valid JSON."}
     except Exception as e: # Catch other potential exceptions during file reading
         return {'error': f"An unexpected error occurred while reading the JSON file: {e}"}
 
@@ -242,7 +238,7 @@ def get_news_articles_from_json_key(keywords, json_file_path='code/nv.json', top
         return {'error': f"Request Exception: {e}"} # Handle network errors, timeouts, etc.
 
 
-def get_top_headlines(country='us', json_file_path='code/nv.json'):
+def get_top_headlines(country='us', json_file_path='config/nv.json'):
     """
     Fetches top headlines from the News API for a specific country.
     API key is imported from a JSON file.
@@ -251,7 +247,7 @@ def get_top_headlines(country='us', json_file_path='code/nv.json'):
         country (str, optional): The 2-letter ISO 3166-1 country code for headlines.
                                  Defaults to 'us' (United States).
         json_file_path (str, optional): Path to the JSON file containing API keys.
-                                        Defaults to 'code/nv.json' in the same directory.
+                                        Defaults to 'config/nv.json' in the same directory.
 
     Returns:
         dict: A dictionary containing top headlines from the News API, or an error message.
@@ -264,11 +260,8 @@ def get_top_headlines(country='us', json_file_path='code/nv.json'):
         return {'error': "Country code must be provided."} # Ensure country code is provided
 
     try:
-        # Construct the absolute path to the JSON file
-        script_dir = os.path.dirname(os.path.abspath(__file__))  # Directory of the current script
-        json_path = os.path.join(script_dir, json_file_path)
 
-        with open(json_path, 'r') as f:
+        with open(json_file_path, 'r') as f:
             keys_data = json.load(f)
             api_key = keys_data.get('YOUR_NEWSAPI_API_KEY')
 
@@ -276,9 +269,9 @@ def get_top_headlines(country='us', json_file_path='code/nv.json'):
             return {'error': "API key not found in JSON file or 'YOUR_NEWSAPI_API_KEY' key is missing."}
 
     except FileNotFoundError:
-        return {'error': f"JSON file not found at path: {json_path}"}
+        return {'error': f"JSON file not found at path: {json_file_path}"}
     except json.JSONDecodeError:
-        return {'error': f"Error decoding JSON from file: {json_path}. Please ensure it's valid JSON."}
+        return {'error': f"Error decoding JSON from file: {json_file_path}. Please ensure it's valid JSON."}
     except Exception as e: # Catch other potential exceptions during file reading
         return {'error': f"An unexpected error occurred while reading the JSON file: {e}"}
 
@@ -386,6 +379,13 @@ def calculate(expression):
     except Exception:
         return "Error: Invalid expression"
 
+def test():
+    print( 100,"=", calculate("(125 + 75)/2"))
+    print( get_top_headlines(country='us') )
+    print( get_news_articles_from_json_key("code"))
+    print( get_current_time(location="Bangalore"))
+    print( get_weather())
+
 tools_config = {
     "get_weather": {
         "function": {
@@ -420,7 +420,7 @@ tools_config = {
     "get_news_articles_from_json_key": {
         "function": {
             "name": "get_news_articles_from_json_key",
-            "description": "Use this function to get news articles based on keywords. You can provide keywords as a single string or a list of strings. The function will search for articles related to these keywords using the News API.  The API key is securely imported from a JSON file named 'code/nv.json' in the same directory as the script. This function returns a maximum of the top specified number of most popular news articles related to the keywords within a specified date range, defaulting to the last 10 days. This is useful when the user is asking for news about a specific topic or event and wants to see the most popular articles from recent days.",
+            "description": "Use this function to get news articles based on keywords. You can provide keywords as a single string or a list of strings. The function will search for articles related to these keywords using the News API.  The API key is securely imported from a JSON file named 'config/nv.json' in the same directory as the script. This function returns a maximum of the top specified number of most popular news articles related to the keywords within a specified date range, defaulting to the last 10 days. This is useful when the user is asking for news about a specific topic or event and wants to see the most popular articles from recent days.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -495,23 +495,27 @@ tools_config = {
     }
 }
 
-def load_tools_from_dict(tool_dict):
-    """Loads tool definitions from a dictionary and creates tool objects."""
-    tools = []
-    for name, details in tool_dict.items():
-        try:
-            func = details["callable"]
-            tool_def_json = {name: details["function"]}
-            tool_def_str = json.dumps(tool_def_json)
-            enabled = details.get("enabled", True) #default to true if not specified.
+def get_enabled_tools(tools_config):
+    """
+    Generates a new dictionary containing only the enabled tools from the tools_config.
 
-            tools.append(tool(name=name, func=func, tool_def=tool_def_str, enabled=enabled))
-        except KeyError as e:
-            print(f"Warning: Missing key {e} in tool: {name}")
-        except Exception as e:
-            print(f"Warning: An unexpected error occurred while processing tool {name}: {e}")
-    return tools
+    Args:
+        tools_config (dict): The original dictionary containing tool configurations.
 
-available_functions = load_tools_from_dict(tools_config)
+    Returns:
+        dict: A new dictionary with only the enabled tools.
+    """
+    enabled_tools = {}
+    for tool_name, tool_data in tools_config.items():
+        if tool_data["enabled"]:
+            enabled_tools[tool_name] = tool_data
+    return enabled_tools
 
-print (available_functions)
+# Generate the new dictionary with only enabled tools
+available_functions = get_enabled_tools(tools_config)
+
+if __name__ == "__main__":
+    # test()
+    pass
+    
+    # print (available_functions)
