@@ -356,6 +356,9 @@ def calculate(expression):
         except ValueError:
             return "Error: Invalid expression"
 
+def get_time():
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
     def handle_parentheses(expr):
         """
         Handles parentheses within the expression.
@@ -380,11 +383,19 @@ def calculate(expression):
         return "Error: Invalid expression"
 
 def test():
+    print("#"*64)
+    print("="*30,"#"*8,"-"*30)
     print( 100,"=", calculate("(125 + 75)/2"))
+    print("="*30,"#"*8,"-"*30)
     print( get_top_headlines(country='us') )
+    print("="*30,"#"*8,"-"*30)
     print( get_news_articles_from_json_key("code"))
+    print("="*30,"#"*8,"-"*30)
     print( get_current_time(location="Bangalore"))
+    print("="*30,"#"*8,"-"*30)
     print( get_weather())
+    print("="*30,"#"*8,"-"*30)
+    print("#"*64)
 
 tools_config = {
     "get_weather": {
@@ -407,7 +418,7 @@ tools_config = {
     },
     "get_current_time": {
         "function": {
-            "name": "get_current_time",
+            "name": "get_time",
             "description": "Get the current time.",
             "parameters": {
                 "type": "object",
@@ -415,7 +426,7 @@ tools_config = {
             }
         },
         "enabled": True,
-        "callable": get_current_time
+        "callable": get_time
     },
     "get_news_articles_from_json_key": {
         "function": {
@@ -515,7 +526,5 @@ def get_enabled_tools(tools_config):
 available_functions = get_enabled_tools(tools_config)
 
 if __name__ == "__main__":
-    # test()
-    pass
-    
-    # print (available_functions)
+    test()
+    print (available_functions)

@@ -60,12 +60,9 @@ class AiAgent:
     def chat(self, message: str) -> str:
         self.history.append({"role": "user", "content": message})
 
-        response = self.call_general_info_tool()
-        if response:
-            self.history.append({"role": "assistant", "content": response})
-            self.save_history()
-            logging.info("Chat completed successfully. User input: %s, AI response: %s", message, response)
-            return response
+        self.call_general_info_tool()
+        # logging.info("Chat completed successfully. User input: %s, AI response: %s", message, response)
+
         
         try:
             response = ollama.chat(
@@ -104,6 +101,9 @@ class AiAgent:
         
 
     def call_general_info_tool(self):
+        self.history.append({"role": "assistant", "content": "not implemented yet"})
+        logging.info("not implemented yet field successfully.")
+        return "not implemented yet"
         """
         Calls tools from the general_info section of the config.
 
@@ -113,6 +113,8 @@ class AiAgent:
         - Correctly formatting tool outputs for the model.
         - Returning the final model response after tool execution.
         """
+
+
         general_info_config = self.config.get("general_info", {})
         model_parameters = general_info_config.get("model_parameters", self.model_parameters)
         system_prompt = general_info_config.get("system_prompt", None)
@@ -121,13 +123,14 @@ class AiAgent:
         messages = self.history.copy()
         if system_prompt:
             messages.insert(0, {"role": "system", "content": system_prompt})
+            messages.append({"role": "system", "content": system_prompt})
 
         try:
             # Initial call to the model with tool definitions
-            response = ollama.chat(model=self.model, options=model_parameters, messages=messages, tools=list(tools.values()))
+            response = ollama.chat(model=self.model, options=model_parameters, messages=messages, tools=list(tools))
 
             # Check if there are any tool calls in the response
-            if response.message.tool_calls:
+            if response.message.tool_calls is not None:
                 logging.info(f"Tool calls detected: {response.message.tool_calls}")
                 
                 # Process each tool call
@@ -177,6 +180,7 @@ class AiAgent:
 
             else:
                 # No tool calls, return the original response
+                self.history.append({"role": "system", "content": "No system calls were executed by the program."})
                 return response.message.content
 
         except Exception as e:
