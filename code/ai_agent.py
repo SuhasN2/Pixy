@@ -101,7 +101,7 @@ class AiAgent:
         
 
     def call_general_info_tool(self):
-        self.history.append({"role": "assistant", "content": "not implemented yet"})
+        self.history.append({"role": "assistant", "content": "tool calling not implemented yet"})
         logging.info("not implemented yet field successfully.")
         return "not implemented yet"
         """

@@ -52,7 +52,52 @@ def initialize_agent(config_filepath: str, history_filepath: str) -> AiAgent:
         logging.critical(f"Failed to initialize AiAgent: {e}")
         raise
 
-def get_multiline_input(prompt="Enter text (Shift+Enter for new line, Enter to finish):"):
+def load_json_config(config_filepath, history_filepath):
+    """
+    Loads JSON configuration and initializes an agent.
+
+    Args:
+        config_filepath (str): The path to the configuration file.
+        history_filepath (str): The path to the history file.
+
+    Returns:
+        bool: True if the process completes without errors, False otherwise.
+    """
+    try:
+        config_dir = os.path.dirname(config_filepath)
+        if not os.path.exists(config_dir):
+            os.makedirs(config_dir)
+            logging.warning(f"Config directory '{config_dir}' created. Please add AI_config.json.")
+            print(f"Config directory '{config_dir}' created. Please add AI_config.json.")
+            return False  # Indicate an error as the user needs to add the config file
+
+        # Ensure history file exists
+        if not os.path.exists(history_filepath):
+            with open(history_filepath, 'w') as f:
+                json.dump([], f)  # Initialize with an empty list
+            logging.info(f"History file '{history_filepath}' created.")
+
+        # Assuming check_ollama, load_config, and initialize_agent are defined elsewhere
+        # If these raise exceptions, they will be caught in the outer try-except block
+
+        # Check Ollama connection and model
+        if not check_ollama(config_filepath):
+            print("Ollama connection or model ve/rification failed. Exiting.")
+            logging.critical("Ollama connection or model verification failed.")
+            return False
+
+        return True
+
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Error loading configuration or history file: {e}")
+        logging.error(f"Error loading configuration or history file: {e}")
+        return False
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        logging.error(f"An unexpected error occurred: {e}")
+        return False    
+    
+def get_multiline_input(prompt="Enter text (Shift+Enter for new line, Enter to finish):"): # to do fix
     """
     Reads lines from standard input. Shift+Enter creates a new line in the input,
     and pressing Enter on an empty line will stop the input.
@@ -70,7 +115,7 @@ def get_multiline_input(prompt="Enter text (Shift+Enter for new line, Enter to f
     while True:
         try:
             line = input()
-            if not line:
+            if line == "/-": #* Make it little better.
                 break  # Empty line, stop reading
             lines.append(line)
         except EOFError:
@@ -79,8 +124,8 @@ def get_multiline_input(prompt="Enter text (Shift+Enter for new line, Enter to f
         except KeyboardInterrupt:
             # Handle Ctrl+C
             break
-    return "\n".join(lines)
 
+    return "\n".join(lines)
 
 def main():
     """Main function to run the Pixy AI agent."""
@@ -89,66 +134,39 @@ def main():
     config_filepath = 'config/AI_config.json'
     history_filepath = 'history.json'
 
-    # Ensure config directory exists
-    config_dir = os.path.dirname(config_filepath)
-    if not os.path.exists(config_dir):
-        os.makedirs(config_dir)
-        logging.warning(f"Config directory '{config_dir}' created. Please add AI_config.json.")
-        print(f"Config directory '{config_dir}' created. Please add AI_config.json.")
-        return
-
-    # Ensure history file exists
-    if not os.path.exists(history_filepath):
-        with open(history_filepath, 'w') as f:
-            json.dump([], f)  # Initialize with an empty list
-        logging.info(f"History file '{history_filepath}' created.")
-
-    # Check Ollama connection and model
-    if not check_ollama(config_filepath):
-        print("Ollama connection or model verification failed. Exiting.")
-        logging.critical("Ollama connection or model verification failed.")
-        return
-
-    # Load configuration
-    try:
-        config = load_config(config_filepath)
-    except (FileNotFoundError, json.JSONDecodeError):
-        print("Failed to load configuration. Exiting.")
-        return
-
-    # Initialize the agent
-    try:
+    if load_json_config(config_filepath, history_filepath):
+        # Load configuration 
+        config = load_config(config_filepath) # TODO --------------
+        # Initialize the agent
         agent = initialize_agent(config_filepath, history_filepath)
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        print("Failed to initialize agent. Exiting.")
-        return
+    
+        # Start the conversation
+        try:
+            # agent.chat(agent.system_prompt)  # Use system prompt from config
+            logging.info("Conversation started.")
 
-    # Start the conversation
-    try:
-        # agent.chat(agent.system_prompt)  # Use system prompt from config
-        logging.info("Conversation started.")
+            while True: #* ====> main loop <======
+                user_input = f"Suhas:{get_multiline_input('You: ')}"
 
-        while True: #* ====> main loop <======
-            user_input = f"Suhas:{get_multiline_input('You: ')}"
+                # Command check
+                if user_input.lower() in ["suhas:/quit", "suhas:/exit", "suhas:/bye"]:
+                    logging.info("Exiting conversation.")
+                    break
 
-            # Command check
-            if user_input.lower() in ["suhas:/quit", "suhas:/exit", "suhas:/bye"]:
-                logging.info("Exiting conversation.")
-                break
+                try:
+                    response = agent.chat(user_input)
+                    print("Pixy:", response)
+                except Exception as e:
+                    print(f"An error occurred during chat or summarization: {e}")
+                    logging.error(f"Error during chat or summarization: {e}")
 
-            try:
-                response = agent.chat(user_input)
-                print("Pixy:", response)
-            except Exception as e:
-                print(f"An error occurred during chat or summarization: {e}")
-                logging.error(f"Error during chat or summarization: {e}")
+        except Exception as e:
+            logging.exception(f"An unexpected error occurred: {e}")
+            print(f"An unexpected error occurred: {e}")
 
-    except Exception as e:
-        logging.exception(f"An unexpected error occurred: {e}")
-        print(f"An unexpected error occurred: {e}")
-
-    finally:
-        logging.info("Pixy AI Agent finished.")
-
+        finally:
+            logging.info("Pixy AI Agent finished.")
+    else:
+        pass
 if __name__ == "__main__":
     main()
